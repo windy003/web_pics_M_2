@@ -12,19 +12,16 @@
                         <h5 class="card-title">
                             <i class="bi bi-folder"></i> {{ folder.name }}
                         </h5>
-                        <p class="card-text text-muted">{{ folder.description or '暂无描述' }}</p>
                         <small class="text-muted">{{ folder_counts[folder.id] }} 张图片</small>
                         <div class="mt-2">
                             <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" 
                                     data-bs-target="#editFolderModal{{ folder.id }}" onclick="event.stopPropagation()">
                                 <i class="bi bi-pencil"></i> 编辑
                             </button>
-                            {% if folder.id != 1 %}
                             <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" 
                                     data-bs-target="#deleteFolderModal{{ folder.id }}" onclick="event.stopPropagation()">
                                 <i class="bi bi-trash"></i> 删除
                             </button>
-                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -65,7 +62,6 @@
             </div>
 
             <!-- 删除文件夹确认模态框 -->
-            {% if folder.id != 1 %}
             <div class="modal fade" id="deleteFolderModal{{ folder.id }}" tabindex="-1">
                 <div class="modal-dialog">
                     <div class="modal-content">
@@ -86,7 +82,6 @@
                     </div>
                 </div>
             </div>
-            {% endif %}
             {% endfor %}
         </div>
     </div>
