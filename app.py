@@ -873,20 +873,22 @@ def search():
                 for img in filename_matched_images:
                     search_results['filename_matches'].append({
                         'filename': img['original_filename'],
-                        'folder_name': img['folder_name']
+                        'folder_name': img['folder_name'],
+                        'folder_id': img['folder_id']
                     })
                 images.extend(filename_matched_images)
             
             # 2. 搜索文件夹名称
             folder_name_matched = conn.execute('''
-                SELECT f.name 
+                SELECT f.id, f.name 
                 FROM folders f 
                 WHERE f.id = ? AND f.user_id = ? AND f.name LIKE ?
             ''', (folder_id, user_id, f'%{query}%')).fetchone()
             
             if folder_name_matched:
                 search_results['folder_name_matches'].append({
-                    'folder_name': folder_name_matched['name']
+                    'folder_name': folder_name_matched['name'],
+                    'folder_id': folder_name_matched['id']
                 })
                 
                 # 获取该文件夹的所有图片
@@ -908,14 +910,15 @@ def search():
             try:
                 folder_desc = read_folder_description(user_id, int(folder_id))
                 if folder_desc and query.lower() in folder_desc.lower():
-                    # 获取文件夹名称
+                    # 获取文件夹信息
                     folder_info = conn.execute('''
-                        SELECT name FROM folders WHERE id = ? AND user_id = ?
+                        SELECT id, name FROM folders WHERE id = ? AND user_id = ?
                     ''', (folder_id, user_id)).fetchone()
                     
                     search_results['description_matches'].append({
                         'description': folder_desc,
-                        'folder_name': folder_info['name'] if folder_info else '未知'
+                        'folder_name': folder_info['name'] if folder_info else '未知',
+                        'folder_id': folder_info['id'] if folder_info else None
                     })
                     
                     # 获取该文件夹的所有图片
@@ -949,7 +952,8 @@ def search():
                 for img in filename_matched_images:
                     search_results['filename_matches'].append({
                         'filename': img['original_filename'],
-                        'folder_name': img['folder_name']
+                        'folder_name': img['folder_name'],
+                        'folder_id': img['folder_id']
                     })
                 images.extend(filename_matched_images)
             
@@ -962,7 +966,8 @@ def search():
             if matched_folders:
                 for folder in matched_folders:
                     search_results['folder_name_matches'].append({
-                        'folder_name': folder['name']
+                        'folder_name': folder['name'],
+                        'folder_id': folder['id']
                     })
                     
                     # 获取该文件夹的所有图片
@@ -987,7 +992,8 @@ def search():
                     if folder_desc and query.lower() in folder_desc.lower():
                         search_results['description_matches'].append({
                             'description': folder_desc,
-                            'folder_name': folder['name']
+                            'folder_name': folder['name'],
+                            'folder_id': folder['id']
                         })
                         
                         # 获取该文件夹的所有图片

@@ -43,7 +43,12 @@
                     {% for match in search_results.filename_matches %}
                     <div class="mb-2">
                         <strong>{{ match.filename }}</strong><br>
-                        <small class="text-muted">所属文件夹: {{ match.folder_name }}</small>
+                        <small class="text-muted">
+                            所属文件夹: 
+                            <a href="{{ url_for('view_folder', folder_id=match.folder_id) }}" class="text-decoration-none">
+                                {{ match.folder_name }}
+                            </a>
+                        </small>
                     </div>
                     {% if not loop.last %}<hr>{% endif %}
                     {% endfor %}
@@ -61,7 +66,9 @@
                 <div class="card-body">
                     {% for match in search_results.folder_name_matches %}
                     <div class="mb-2">
-                        <strong>{{ match.folder_name }}</strong>
+                        <a href="{{ url_for('view_folder', folder_id=match.folder_id) }}" class="text-decoration-none">
+                            <strong>{{ match.folder_name }}</strong>
+                        </a>
                     </div>
                     {% if not loop.last %}<hr>{% endif %}
                     {% endfor %}
@@ -80,7 +87,12 @@
                     {% for match in search_results.description_matches %}
                     <div class="mb-2">
                         <p class="mb-1">{{ match.description }}</p>
-                        <small class="text-muted">所属文件夹: {{ match.folder_name }}</small>
+                        <small class="text-muted">
+                            所属文件夹: 
+                            <a href="{{ url_for('view_folder', folder_id=match.folder_id) }}" class="text-decoration-none">
+                                {{ match.folder_name }}
+                            </a>
+                        </small>
                     </div>
                     {% if not loop.last %}<hr>{% endif %}
                     {% endfor %}
@@ -98,14 +110,25 @@
         {% for image in images %}
         <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
             <div class="card">
-                <img src="{{ url_for('uploaded_file', user_id=image.user_id, folder_id=image.folder_id, filename=image.filename) }}" 
-                     class="card-img-top" alt="{{ image.original_filename }}" 
-                     style="height: 200px; object-fit: cover;">
+                <a href="{{ url_for('uploaded_file', user_id=image.user_id, folder_id=image.folder_id, filename=image.filename) }}" 
+                   target="_blank" class="text-decoration-none">
+                    <img src="{{ url_for('uploaded_file', user_id=image.user_id, folder_id=image.folder_id, filename=image.filename) }}" 
+                         class="card-img-top" alt="{{ image.original_filename }}" 
+                         style="height: 200px; object-fit: cover;">
+                </a>
                 <div class="card-body">
-                    <h6 class="card-title">{{ image.original_filename }}</h6>
+                    <h6 class="card-title">
+                        <a href="{{ url_for('uploaded_file', user_id=image.user_id, folder_id=image.folder_id, filename=image.filename) }}" 
+                           target="_blank" class="text-decoration-none">
+                            {{ image.original_filename }}
+                        </a>
+                    </h6>
                     <p class="card-text">
                         <small class="text-muted">
-                            <i class="bi bi-folder"></i> {{ image.folder_name }}<br>
+                            <i class="bi bi-folder"></i> 
+                            <a href="{{ url_for('view_folder', folder_id=image.folder_id) }}" class="text-decoration-none">
+                                {{ image.folder_name }}
+                            </a><br>
                             <i class="bi bi-calendar"></i> {{ image.uploaded_at }}
                         </small>
                     </p>
