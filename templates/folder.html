@@ -13,7 +13,7 @@
                     <h6 class="card-title">
                         <i class="bi bi-file-text"></i> 文件夹描述
                         <button class="btn btn-sm btn-outline-primary ms-2" data-bs-toggle="modal" 
-                                data-bs-target="#editDescriptionModal">
+                                data-bs-target="#editFolderModal">
                             <i class="bi bi-pencil"></i> 编辑
                         </button>
                     </h6>
@@ -22,7 +22,7 @@
             </div>
             {% else %}
             <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" 
-                    data-bs-target="#editDescriptionModal">
+                    data-bs-target="#editFolderModal">
                 <i class="bi bi-plus"></i> 添加文件夹描述
             </button>
             {% endif %}
@@ -154,16 +154,21 @@
 </div>
 {% endif %}
 
-<!-- 编辑文件夹描述模态框 -->
-<div class="modal fade" id="editDescriptionModal" tabindex="-1">
+<!-- 编辑文件夹模态框（合并了名称和描述编辑） -->
+<div class="modal fade" id="editFolderModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <form method="POST" action="{{ url_for('update_folder_description', folder_id=folder.id) }}">
+            <form method="POST" action="{{ url_for('update_folder', folder_id=folder.id) }}">
                 <div class="modal-header">
-                    <h5 class="modal-title">编辑文件夹描述</h5>
+                    <h5 class="modal-title">编辑文件夹</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">文件夹名称</label>
+                        <input type="text" class="form-control" name="folder_name" 
+                               value="{{ folder.name }}" required>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label">文件夹描述</label>
                         <textarea class="form-control" name="description" rows="8" 
