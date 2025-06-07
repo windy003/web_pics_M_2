@@ -8,8 +8,9 @@ from functools import wraps
 import sqlite3
 import shutil
 
+
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-here-change-in-production'
+app.config['SECRET_KEY'] = "SECRET_KEY"
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
@@ -55,7 +56,7 @@ def column_exists(cursor, table_name, column_name):
 
 def init_db():
     """初始化数据库和处理迁移"""
-    conn = sqlite3.connect('gallery.db')
+    conn = sqlite3.connect('instance/gallery.db')
     cursor = conn.cursor()
     
     # 检查是否是全新数据库
@@ -229,7 +230,7 @@ def migrate_image_files(user_id):
 
 def get_db_connection():
     """获取数据库连接"""
-    conn = sqlite3.connect('gallery.db')
+    conn = sqlite3.connect('instance/gallery.db')
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -1032,6 +1033,10 @@ def uploaded_file(user_id, folder_id, filename):
     folder_path = get_folder_path(user_id, folder_id)
     return send_from_directory(folder_path, filename)
 
+
+init_db()
+
+
 if __name__ == '__main__':
     # 确保上传目录存在
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -1039,4 +1044,4 @@ if __name__ == '__main__':
     # 初始化数据库
     init_db()
     
-    app.run(debug=True) 
+    app.run(host='0.0.0.0', port=5005, debug=True) 
