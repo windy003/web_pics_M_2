@@ -1,6 +1,6 @@
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta    
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, session
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -13,6 +13,11 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = "SECRET_KEY"
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)  # 设置为7天
+app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=14)  # 记住我功能的cookie持续时间
+
+
+
 
 # 允许的文件扩展名
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'}
