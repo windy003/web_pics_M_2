@@ -43,7 +43,7 @@
     {% for image in images %}
     <div class="col-md-6 col-lg-4 col-xl-3 mb-4">
         <div class="card image-card">
-            <img src="{{ url_for('uploaded_file', user_id=session.user_id, filename=image.filename) }}" 
+            <img src="{{ url_for('uploaded_file', user_id=session.user_id, folder_id=folder.id, filename=image.filename) }}" 
                  class="card-img-top image-thumbnail" alt="{{ image.original_filename }}">
             <div class="card-body">
                 <h6 class="card-title">{{ image.original_filename }}</h6>

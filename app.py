@@ -363,10 +363,14 @@ def index():
     return render_template('index.html', folders=folders, folder_counts=folder_counts, 
                          folder_descriptions=folder_descriptions)
 
+def get_folder_path(user_id, folder_id):
+    """获取文件夹的物理路径"""
+    return os.path.join(app.config['UPLOAD_FOLDER'], str(user_id), str(folder_id))
+
 def get_folder_description_file_path(user_id, folder_id):
     """获取文件夹描述文件的路径"""
-    user_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], str(user_id))
-    return os.path.join(user_upload_dir, f'folder_{folder_id}_description.txt')
+    folder_path = get_folder_path(user_id, folder_id)
+    return os.path.join(folder_path, 'description.txt')
 
 def read_folder_description(user_id, folder_id):
     """读取文件夹描述文件内容"""
@@ -374,7 +378,11 @@ def read_folder_description(user_id, folder_id):
     try:
         if os.path.exists(desc_file_path):
             with open(desc_file_path, 'r', encoding='utf-8') as f:
-                return f.read().strip()
+                content = f.read().strip()
+                print(f"读取到描述内容: {content}")
+                return content
+        else:
+            print(f"描述文件不存在: {desc_file_path}")
     except Exception as e:
         print(f"读取描述文件失败: {e}")
     return ''
@@ -382,21 +390,52 @@ def read_folder_description(user_id, folder_id):
 def write_folder_description(user_id, folder_id, description):
     """写入文件夹描述文件内容"""
     desc_file_path = get_folder_description_file_path(user_id, folder_id)
+    print(f"准备写入描述: '{description}' 到文件: {desc_file_path}")
+    
     try:
         # 确保目录存在
-        os.makedirs(os.path.dirname(desc_file_path), exist_ok=True)
+        dir_path = os.path.dirname(desc_file_path)
+        print(f"确保目录存在: {dir_path}")
+        os.makedirs(dir_path, exist_ok=True)
+        
+        # 检查目录是否真的存在
+        if not os.path.exists(dir_path):
+            print(f"错误：无法创建目录 {dir_path}")
+            return False
+        
+        # 检查目录权限
+        if not os.access(dir_path, os.W_OK):
+            print(f"错误：目录 {dir_path} 没有写权限")
+            return False
         
         if description.strip():
             # 如果有描述内容，写入文件
+            print(f"写入描述内容到文件...")
             with open(desc_file_path, 'w', encoding='utf-8') as f:
                 f.write(description.strip())
+            print(f"描述文件写入成功: {desc_file_path}")
+            
+            # 验证文件是否真的被创建
+            if os.path.exists(desc_file_path):
+                file_size = os.path.getsize(desc_file_path)
+                print(f"文件创建成功，大小: {file_size} 字节")
+                with open(desc_file_path, 'r', encoding='utf-8') as f:
+                    written_content = f.read()
+                print(f"验证写入内容: '{written_content}'")
+            else:
+                print(f"错误：文件写入后不存在！")
+                return False
         else:
             # 如果描述为空，删除文件（如果存在）
+            print(f"描述为空，删除文件（如果存在）")
             if os.path.exists(desc_file_path):
                 os.remove(desc_file_path)
+                print(f"已删除空描述文件: {desc_file_path}")
         return True
     except Exception as e:
         print(f"写入描述文件失败: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 def delete_folder_description(user_id, folder_id):
@@ -407,6 +446,30 @@ def delete_folder_description(user_id, folder_id):
             os.remove(desc_file_path)
     except Exception as e:
         print(f"删除描述文件失败: {e}")
+
+def create_folder_directory(user_id, folder_id):
+    """创建文件夹的物理目录"""
+    folder_path = get_folder_path(user_id, folder_id)
+    try:
+        os.makedirs(folder_path, exist_ok=True)
+        print(f"创建文件夹目录: {folder_path}")
+        return True
+    except Exception as e:
+        print(f"创建文件夹目录失败: {e}")
+        return False
+
+def delete_folder_directory(user_id, folder_id):
+    """删除文件夹的物理目录及其所有内容"""
+    folder_path = get_folder_path(user_id, folder_id)
+    try:
+        if os.path.exists(folder_path):
+            import shutil
+            shutil.rmtree(folder_path)
+            print(f"删除文件夹目录: {folder_path}")
+        return True
+    except Exception as e:
+        print(f"删除文件夹目录失败: {e}")
+        return False
 
 @app.route('/folder/<int:folder_id>')
 @login_required
@@ -486,13 +549,13 @@ def upload_file():
         
         filename = str(uuid.uuid4()) + '.' + file_extension
         
-        # 确保用户上传目录存在
+        # 确保文件夹目录存在
         user_id = session['user_id']
-        user_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], str(user_id))
-        os.makedirs(user_upload_dir, exist_ok=True)
+        folder_path = get_folder_path(user_id, folder_id)
+        os.makedirs(folder_path, exist_ok=True)
         
-        # 保存文件
-        file_path = os.path.join(user_upload_dir, filename)
+        # 保存文件到对应的文件夹目录
+        file_path = os.path.join(folder_path, filename)
         file.save(file_path)
         
         # 保存到数据库
@@ -527,7 +590,15 @@ def create_folder():
                     (folder_name, user_id))
         folder_id = cursor.lastrowid
         conn.commit()
-        flash('文件夹创建成功', 'success')
+        
+        # 创建对应的物理目录
+        if create_folder_directory(user_id, folder_id):
+            flash('文件夹创建成功', 'success')
+        else:
+            # 如果目录创建失败，回滚数据库操作
+            conn.execute('DELETE FROM folders WHERE id = ?', (folder_id,))
+            conn.commit()
+            flash('文件夹创建失败', 'error')
     except sqlite3.IntegrityError:
         flash('文件夹名称已存在', 'error')
     finally:
@@ -625,29 +696,18 @@ def delete_folder(folder_id):
         conn.close()
         return redirect(url_for('index'))
     
-    # 获取文件夹中的所有图片
-    images = conn.execute(
-        'SELECT filename FROM images WHERE folder_id = ? AND user_id = ?', 
-        (folder_id, user_id)
-    ).fetchall()
-    
-    # 删除物理文件
-    user_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], str(user_id))
-    for image in images:
-        file_path = os.path.join(user_upload_dir, image['filename'])
-        if os.path.exists(file_path):
-            os.remove(file_path)
-    
-    # 删除文件夹描述文件
-    delete_folder_description(user_id, folder_id)
-    
     # 删除数据库记录
     conn.execute('DELETE FROM images WHERE folder_id = ? AND user_id = ?', (folder_id, user_id))
     conn.execute('DELETE FROM folders WHERE id = ? AND user_id = ?', (folder_id, user_id))
     conn.commit()
     conn.close()
     
-    flash('文件夹删除成功', 'success')
+    # 删除整个文件夹目录（包括所有图片和描述文件）
+    if delete_folder_directory(user_id, folder_id):
+        flash('文件夹删除成功', 'success')
+    else:
+        flash('文件夹删除成功，但清理文件时出现问题', 'warning')
+    
     return redirect(url_for('index'))
 
 @app.route('/rename_image/<int:image_id>', methods=['POST'])
@@ -700,16 +760,45 @@ def move_image(image_id):
         conn.close()
         return redirect(request.referrer)
     
-    result = conn.execute(
-        'UPDATE images SET folder_id = ? WHERE id = ? AND user_id = ?', 
-        (new_folder_id, image_id, user_id)
-    )
+    # 获取图片信息
+    image = conn.execute(
+        'SELECT filename, folder_id FROM images WHERE id = ? AND user_id = ?', 
+        (image_id, user_id)
+    ).fetchone()
     
-    if result.rowcount == 0:
+    if not image:
         flash('图片不存在或无权访问', 'error')
-    else:
-        conn.commit()
-        flash('图片移动成功', 'success')
+        conn.close()
+        return redirect(request.referrer)
+    
+    # 移动物理文件
+    old_folder_path = get_folder_path(user_id, image['folder_id'])
+    new_folder_path = get_folder_path(user_id, new_folder_id)
+    old_file_path = os.path.join(old_folder_path, image['filename'])
+    new_file_path = os.path.join(new_folder_path, image['filename'])
+    
+    try:
+        # 确保目标文件夹目录存在
+        os.makedirs(new_folder_path, exist_ok=True)
+        
+        # 移动文件
+        if os.path.exists(old_file_path):
+            shutil.move(old_file_path, new_file_path)
+        
+        # 更新数据库
+        result = conn.execute(
+            'UPDATE images SET folder_id = ? WHERE id = ? AND user_id = ?', 
+            (new_folder_id, image_id, user_id)
+        )
+        
+        if result.rowcount == 0:
+            flash('图片不存在或无权访问', 'error')
+        else:
+            conn.commit()
+            flash('图片移动成功', 'success')
+    except Exception as e:
+        print(f"移动图片失败: {e}")
+        flash('图片移动失败', 'error')
     
     conn.close()
     return redirect(request.referrer)
@@ -723,14 +812,14 @@ def delete_image(image_id):
     
     # 获取图片信息
     image = conn.execute(
-        'SELECT filename FROM images WHERE id = ? AND user_id = ?', 
+        'SELECT filename, folder_id FROM images WHERE id = ? AND user_id = ?', 
         (image_id, user_id)
     ).fetchone()
     
     if image:
         # 删除物理文件
-        user_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], str(user_id))
-        file_path = os.path.join(user_upload_dir, image['filename'])
+        folder_path = get_folder_path(user_id, image['folder_id'])
+        file_path = os.path.join(folder_path, image['filename'])
         if os.path.exists(file_path):
             os.remove(file_path)
         
@@ -775,6 +864,7 @@ def search():
     try:
         if folder_id:
             # 在特定文件夹中搜索
+            # 1. 搜索图片文件名
             images = conn.execute('''
                 SELECT i.*, f.name as folder_name 
                 FROM images i 
@@ -783,11 +873,36 @@ def search():
                 ORDER BY i.uploaded_at DESC
             ''', (folder_id, user_id, f'%{query}%')).fetchall()
             
-            # 检查该文件夹的描述文件是否匹配
+            # 2. 搜索文件夹名称
+            folder_name_matched = conn.execute('''
+                SELECT f.name 
+                FROM folders f 
+                WHERE f.id = ? AND f.user_id = ? AND f.name LIKE ?
+            ''', (folder_id, user_id, f'%{query}%')).fetchone()
+            
+            if folder_name_matched:
+                print(f"文件夹名称匹配: {folder_name_matched['name']}")
+                # 如果文件夹名称匹配，获取该文件夹的所有图片
+                name_matched_images = conn.execute('''
+                    SELECT i.*, f.name as folder_name 
+                    FROM images i 
+                    JOIN folders f ON i.folder_id = f.id 
+                    WHERE i.folder_id = ? AND i.user_id = ?
+                    ORDER BY i.uploaded_at DESC
+                ''', (folder_id, user_id)).fetchall()
+                
+                # 合并结果，去重
+                image_ids = {img['id'] for img in images}
+                for img in name_matched_images:
+                    if img['id'] not in image_ids:
+                        images.append(img)
+            
+            # 3. 检查该文件夹的描述文件是否匹配
             try:
                 folder_desc = read_folder_description(user_id, int(folder_id))
                 print(f"folder_desc: {folder_desc}")
                 if folder_desc and query.lower() in folder_desc.lower():
+                    print(f"文件夹描述匹配")
                     # 如果文件夹描述匹配，获取该文件夹的所有图片
                     desc_matched_images = conn.execute('''
                         SELECT i.*, f.name as folder_name 
@@ -806,6 +921,7 @@ def search():
                 pass  # 忽略folder_id转换错误
         else:
             # 全局搜索（仅当前用户的数据）
+            # 1. 搜索图片文件名
             images = conn.execute('''
                 SELECT i.*, f.name as folder_name 
                 FROM images i 
@@ -814,11 +930,35 @@ def search():
                 ORDER BY i.uploaded_at DESC
             ''', (user_id, f'%{query}%')).fetchall()
             
-            # 搜索所有文件夹的描述文件
+            # 2. 搜索文件夹名称
+            matched_folders = conn.execute('''
+                SELECT * FROM folders 
+                WHERE user_id = ? AND name LIKE ?
+            ''', (user_id, f'%{query}%')).fetchall()
+            
+            for folder in matched_folders:
+                print(f"文件夹名称匹配: {folder['name']}")
+                # 如果文件夹名称匹配，获取该文件夹的所有图片
+                name_matched_images = conn.execute('''
+                    SELECT i.*, f.name as folder_name 
+                    FROM images i 
+                    JOIN folders f ON i.folder_id = f.id 
+                    WHERE i.folder_id = ? AND i.user_id = ?
+                    ORDER BY i.uploaded_at DESC
+                ''', (folder['id'], user_id)).fetchall()
+                
+                # 合并结果，去重
+                image_ids = {img['id'] for img in images}
+                for img in name_matched_images:
+                    if img['id'] not in image_ids:
+                        images.append(img)
+            
+            # 3. 搜索所有文件夹的描述文件
             for folder in all_folders:
                 try:
                     folder_desc = read_folder_description(user_id, folder['id'])
                     if folder_desc and query.lower() in folder_desc.lower():
+                        print(f"文件夹描述匹配: {folder['name']}")
                         # 如果文件夹描述匹配，获取该文件夹的所有图片
                         desc_matched_images = conn.execute('''
                             SELECT i.*, f.name as folder_name 
@@ -845,16 +985,16 @@ def search():
     return render_template('search.html', images=images, folders=all_folders, 
                          query=query, selected_folder=folder_id)
 
-@app.route('/uploads/<int:user_id>/<filename>')
+@app.route('/uploads/<int:user_id>/<int:folder_id>/<filename>')
 @login_required
-def uploaded_file(user_id, filename):
+def uploaded_file(user_id, folder_id, filename):
     """提供上传的图片文件（需要验证用户权限）"""
     if session['user_id'] != user_id:
         flash('无权访问此文件', 'error')
         return redirect(url_for('index'))
     
-    user_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], str(user_id))
-    return send_from_directory(user_upload_dir, filename)
+    folder_path = get_folder_path(user_id, folder_id)
+    return send_from_directory(folder_path, filename)
 
 if __name__ == '__main__':
     # 确保上传目录存在
