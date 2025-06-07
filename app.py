@@ -841,15 +841,6 @@ def search():
     folder_id = request.args.get('folder_id', '')
     user_id = session['user_id']
     
-    if not query:
-        conn = get_db_connection()
-        all_folders = conn.execute(
-            'SELECT * FROM folders WHERE user_id = ? ORDER BY name', 
-            (user_id,)
-        ).fetchall()
-        conn.close()
-        return render_template('search.html', images=[], folders=all_folders, query='')
-    
     conn = get_db_connection()
     
     # 获取当前用户的所有文件夹（用于搜索过滤）
@@ -858,20 +849,33 @@ def search():
         (user_id,)
     ).fetchall()
     
-    # 搜索匹配的图片
+    # 搜索结果分类
+    search_results = {
+        'filename_matches': [],
+        'folder_name_matches': [],
+        'description_matches': []
+    }
     images = []
     
     try:
         if folder_id:
             # 在特定文件夹中搜索
             # 1. 搜索图片文件名
-            images = conn.execute('''
+            filename_matched_images = conn.execute('''
                 SELECT i.*, f.name as folder_name 
                 FROM images i 
                 JOIN folders f ON i.folder_id = f.id 
                 WHERE i.folder_id = ? AND i.user_id = ? AND i.original_filename LIKE ?
                 ORDER BY i.uploaded_at DESC
             ''', (folder_id, user_id, f'%{query}%')).fetchall()
+            
+            if filename_matched_images:
+                for img in filename_matched_images:
+                    search_results['filename_matches'].append({
+                        'filename': img['original_filename'],
+                        'folder_name': img['folder_name']
+                    })
+                images.extend(filename_matched_images)
             
             # 2. 搜索文件夹名称
             folder_name_matched = conn.execute('''
@@ -881,8 +885,11 @@ def search():
             ''', (folder_id, user_id, f'%{query}%')).fetchone()
             
             if folder_name_matched:
-                print(f"文件夹名称匹配: {folder_name_matched['name']}")
-                # 如果文件夹名称匹配，获取该文件夹的所有图片
+                search_results['folder_name_matches'].append({
+                    'folder_name': folder_name_matched['name']
+                })
+                
+                # 获取该文件夹的所有图片
                 name_matched_images = conn.execute('''
                     SELECT i.*, f.name as folder_name 
                     FROM images i 
@@ -900,10 +907,18 @@ def search():
             # 3. 检查该文件夹的描述文件是否匹配
             try:
                 folder_desc = read_folder_description(user_id, int(folder_id))
-                print(f"folder_desc: {folder_desc}")
                 if folder_desc and query.lower() in folder_desc.lower():
-                    print(f"文件夹描述匹配")
-                    # 如果文件夹描述匹配，获取该文件夹的所有图片
+                    # 获取文件夹名称
+                    folder_info = conn.execute('''
+                        SELECT name FROM folders WHERE id = ? AND user_id = ?
+                    ''', (folder_id, user_id)).fetchone()
+                    
+                    search_results['description_matches'].append({
+                        'description': folder_desc,
+                        'folder_name': folder_info['name'] if folder_info else '未知'
+                    })
+                    
+                    # 获取该文件夹的所有图片
                     desc_matched_images = conn.execute('''
                         SELECT i.*, f.name as folder_name 
                         FROM images i 
@@ -918,11 +933,11 @@ def search():
                         if img['id'] not in image_ids:
                             images.append(img)
             except (ValueError, TypeError):
-                pass  # 忽略folder_id转换错误
+                pass
         else:
-            # 全局搜索（仅当前用户的数据）
+            # 全局搜索
             # 1. 搜索图片文件名
-            images = conn.execute('''
+            filename_matched_images = conn.execute('''
                 SELECT i.*, f.name as folder_name 
                 FROM images i 
                 JOIN folders f ON i.folder_id = f.id 
@@ -930,36 +945,52 @@ def search():
                 ORDER BY i.uploaded_at DESC
             ''', (user_id, f'%{query}%')).fetchall()
             
+            if filename_matched_images:
+                for img in filename_matched_images:
+                    search_results['filename_matches'].append({
+                        'filename': img['original_filename'],
+                        'folder_name': img['folder_name']
+                    })
+                images.extend(filename_matched_images)
+            
             # 2. 搜索文件夹名称
             matched_folders = conn.execute('''
                 SELECT * FROM folders 
                 WHERE user_id = ? AND name LIKE ?
             ''', (user_id, f'%{query}%')).fetchall()
             
-            for folder in matched_folders:
-                print(f"文件夹名称匹配: {folder['name']}")
-                # 如果文件夹名称匹配，获取该文件夹的所有图片
-                name_matched_images = conn.execute('''
-                    SELECT i.*, f.name as folder_name 
-                    FROM images i 
-                    JOIN folders f ON i.folder_id = f.id 
-                    WHERE i.folder_id = ? AND i.user_id = ?
-                    ORDER BY i.uploaded_at DESC
-                ''', (folder['id'], user_id)).fetchall()
-                
-                # 合并结果，去重
-                image_ids = {img['id'] for img in images}
-                for img in name_matched_images:
-                    if img['id'] not in image_ids:
-                        images.append(img)
+            if matched_folders:
+                for folder in matched_folders:
+                    search_results['folder_name_matches'].append({
+                        'folder_name': folder['name']
+                    })
+                    
+                    # 获取该文件夹的所有图片
+                    name_matched_images = conn.execute('''
+                        SELECT i.*, f.name as folder_name 
+                        FROM images i 
+                        JOIN folders f ON i.folder_id = f.id 
+                        WHERE i.folder_id = ? AND i.user_id = ?
+                        ORDER BY i.uploaded_at DESC
+                    ''', (folder['id'], user_id)).fetchall()
+                    
+                    # 合并结果，去重
+                    image_ids = {img['id'] for img in images}
+                    for img in name_matched_images:
+                        if img['id'] not in image_ids:
+                            images.append(img)
             
             # 3. 搜索所有文件夹的描述文件
             for folder in all_folders:
                 try:
                     folder_desc = read_folder_description(user_id, folder['id'])
                     if folder_desc and query.lower() in folder_desc.lower():
-                        print(f"文件夹描述匹配: {folder['name']}")
-                        # 如果文件夹描述匹配，获取该文件夹的所有图片
+                        search_results['description_matches'].append({
+                            'description': folder_desc,
+                            'folder_name': folder['name']
+                        })
+                        
+                        # 获取该文件夹的所有图片
                         desc_matched_images = conn.execute('''
                             SELECT i.*, f.name as folder_name 
                             FROM images i 
@@ -974,16 +1005,15 @@ def search():
                             if img['id'] not in image_ids:
                                 images.append(img)
                 except Exception as e:
-                    print(f"搜索文件夹 {folder['id']} 描述时出错: {e}")
                     continue
     
     except Exception as e:
-        print(f"搜索过程中出错: {e}")
         images = []
     
     conn.close()
     return render_template('search.html', images=images, folders=all_folders, 
-                         query=query, selected_folder=folder_id)
+                         query=query, selected_folder=folder_id, 
+                         search_results=search_results)
 
 @app.route('/uploads/<int:user_id>/<int:folder_id>/<filename>')
 @login_required
