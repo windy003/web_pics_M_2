@@ -32,7 +32,7 @@
 
             <!-- 编辑文件夹模态框 -->
             <div class="modal fade" id="editFolderModal{{ folder.id }}" tabindex="-1">
-                <div class="modal-dialog">
+                <div class="modal-dialog modal-lg">
                     <div class="modal-content">
                         <form method="POST" action="{{ url_for('update_folder', folder_id=folder.id) }}">
                             <div class="modal-header">
@@ -46,8 +46,13 @@
                                            value="{{ folder.name }}" required>
                                 </div>
                                 <div class="mb-3">
-                                    <label class="form-label">描述</label>
-                                    <textarea class="form-control" name="description" rows="3">{{ folder.description }}</textarea>
+                                    <label class="form-label">文件夹描述</label>
+                                    <textarea class="form-control" name="description" rows="5" 
+                                              placeholder="在这里输入文件夹的详细描述信息...">{{ folder_descriptions.get(folder.id, '') }}</textarea>
+                                    <div class="form-text">
+                                        <i class="bi bi-info-circle"></i> 
+                                        描述信息将保存为txt文件，与图片文件存放在同一目录中，可以在搜索时被检索到。
+                                    </div>
                                 </div>
                             </div>
                             <div class="modal-footer">
