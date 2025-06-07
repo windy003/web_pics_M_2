@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <h2>文件夹</h2>
+        <div class="row">
+            {% for folder in folders %}
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="card folder-card" onclick="location.href='{{ url_for('view_folder', folder_id=folder.id) }}'">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="bi bi-folder"></i> {{ folder.name }}
+                        </h5>
+                        <p class="card-text text-muted">{{ folder.description or '暂无描述' }}</p>
+                        <small class="text-muted">{{ folder_counts[folder.id] }} 张图片</small>
+                        <div class="mt-2">
+                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" 
+                                    data-bs-target="#editFolderModal{{ folder.id }}" onclick="event.stopPropagation()">
+                                <i class="bi bi-pencil"></i> 编辑
+                            </button>
+                            {% if folder.id != 1 %}
+                            <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" 
+                                    data-bs-target="#deleteFolderModal{{ folder.id }}" onclick="event.stopPropagation()">
+                                <i class="bi bi-trash"></i> 删除
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 编辑文件夹模态框 -->
+            <div class="modal fade" id="editFolderModal{{ folder.id }}" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form method="POST" action="{{ url_for('update_folder', folder_id=folder.id) }}">
+                            <div class="modal-header">
+                                <h5 class="modal-title">编辑文件夹</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label class="form-label">文件夹名称</label>
+                                    <input type="text" class="form-control" name="folder_name" 
+                                           value="{{ folder.name }}" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">描述</label>
+                                    <textarea class="form-control" name="description" rows="3">{{ folder.description }}</textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                                <button type="submit" class="btn btn-primary">保存</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 删除文件夹确认模态框 -->
+            {% if folder.id != 1 %}
+            <div class="modal fade" id="deleteFolderModal{{ folder.id }}" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">确认删除</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>确定要删除文件夹 "{{ folder.name }}" 吗？</p>
+                            <p class="text-danger">此操作将删除文件夹中的所有图片，且不可恢复！</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                            <form method="POST" action="{{ url_for('delete_folder', folder_id=folder.id) }}" style="display: inline;">
+                                <button type="submit" class="btn btn-danger">确认删除</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-plus-circle"></i> 创建新文件夹</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('create_folder') }}">
+                    <div class="mb-3">
+                        <label class="form-label">文件夹名称</label>
+                        <input type="text" class="form-control" name="folder_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">描述</label>
+                        <textarea class="form-control" name="description" rows="3"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">创建文件夹</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5><i class="bi bi-upload"></i> 上传图片</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('upload_file') }}" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label">选择文件夹</label>
+                        <select class="form-select" name="folder_id">
+                            {% for folder in folders %}
+                            <option value="{{ folder.id }}">{{ folder.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">选择图片</label>
+                        <input type="file" class="form-control" name="file" accept="image/*" required>
+                    </div>
+                    <button type="submit" class="btn btn-success">上传图片</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
